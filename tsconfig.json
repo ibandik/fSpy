@@ -1,18 +1,19 @@
 {
   "compileOnSave": false,
   "compilerOptions": {
-    "target": "es2015",
-    "moduleResolution": "node",
+    "target": "es2020",
+    "module": "esnext",
+    "moduleResolution": "bundler",
     "pretty": true,
     "newLine": "LF",
-    "allowSyntheticDefaultImports": true,
+    "esModuleInterop": true,
     "strict": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "noImplicitReturns": true,
     "sourceMap": true,
     "skipLibCheck": true,
-    "allowJs": true,
-    "jsx": "preserve"
-  }
+    "jsx": "react"
+  },
+  "include": ["src"]
 }

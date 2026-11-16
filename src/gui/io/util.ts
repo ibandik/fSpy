@@ -17,13 +17,23 @@
  */
 
 import { join } from 'path'
+import { ipcRenderer } from 'electron'
+import { ShowErrorMessage } from '../ipc-messages'
+
+/**
+ * Shows a native error dialog. For use in the renderer process.
+ */
+export function showErrorBox(title: string, content: string) {
+  ipcRenderer.send(ShowErrorMessage.type, new ShowErrorMessage(title, content))
+}
 
 export function loadImage(
   imageBuffer: Buffer,
   onLoad: (width: number, height: number, url: string) => void,
   onError: () => void
 ) {
-  let blob = new Blob([imageBuffer])
+  // A Buffer is a Uint8Array, which the DOM types don't know
+  let blob = new Blob([imageBuffer as unknown as BlobPart])
   let url = URL.createObjectURL(blob)
   let image = new Image()
   image.src = url

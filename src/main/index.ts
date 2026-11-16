@@ -22,7 +22,7 @@ const path = require('path')
 const url = require('url')
 
 import windowStateKeeper from 'electron-window-state'
-import { SpecifyProjectPathMessage, SpecifyExportPathMessage, SetDocumentStateMessage, OpenDroppedProjectMessage } from '../gui/ipc-messages'
+import { SpecifyProjectPathMessage, SpecifyExportPathMessage, SetDocumentStateMessage, OpenDroppedProjectMessage, ShowErrorMessage, CopyTextMessage, GetAppVersionMessage } from '../gui/ipc-messages'
 import { basename, join } from 'path'
 import AppMenuManager from './app-menu-manager'
 import ProjectFile from '../gui/io/project-file'
@@ -31,7 +31,20 @@ import { openSync, writeSync, closeSync, existsSync, readFileSync, writeFileSync
 import { houdiniCameraName, houdiniCameraScript, HoudiniExportPayload } from '../gui/io/houdini-export'
 import { CLI } from '../cli/cli'
 
-app.allowRendererProcessReuse = true
+// Things the renderer process asks the main process to do for it
+ipcMain.on(ShowErrorMessage.type, (_: any, message: ShowErrorMessage) => {
+  dialog.showErrorBox(message.title, message.content)
+})
+
+ipcMain.on(CopyTextMessage.type, (_: any, message: CopyTextMessage) => {
+  clipboard.writeText(message.text).catch((error) => {
+    dialog.showErrorBox('Failed to copy', String(error))
+  })
+})
+
+ipcMain.on(GetAppVersionMessage.type, (event: Electron.IpcMainEvent) => {
+  event.returnValue = app.getVersion()
+})
 
 let mainWindow: Electron.BrowserWindow | null = null
 
@@ -47,7 +60,7 @@ let initialOpenMessage: OpenProjectMessage | null = null
 let windowHasAppeared = false
 
 // macOS only
-app.on('open-file', (event: Event, filePath: string) => {
+app.on('open-file', (event: Electron.Event, filePath: string) => {
   if (mainWindow === null) {
     initialOpenMessage = new OpenProjectMessage(filePath, false)
     if (windowHasAppeared) {
@@ -105,7 +118,9 @@ function createWindow() {
     webPreferences: {
       // Allow loading local files in dev mode
       webSecurity: process.env.DEV === undefined,
-      nodeIntegration: true
+      // The GUI code uses Node and Electron modules directly
+      nodeIntegration: true,
+      contextIsolation: false
     }
   })
 
@@ -347,7 +362,7 @@ function createWindow() {
   Menu.setApplicationMenu(appMenuManager.menu)
   appMenuManager.setExitFullScreenItemEnabled(false)
 
-  window.on('close', (event: Event) => {
+  window.on('close', (event: Electron.Event) => {
     showDiscardChangesDialogIfNeeded(window, (didCancel: boolean) => {
       if (didCancel) {
         event.preventDefault()
@@ -368,13 +383,13 @@ function createWindow() {
     })
   })
 
-  window.on('enter-full-screen', (_: Event) => {
+  window.on('enter-full-screen', () => {
     appMenuManager.setEnterFullScreenItemEnabled(false)
     appMenuManager.setExitFullScreenItemEnabled(true)
     window.setMenuBarVisibility(false)
   })
 
-  window.on('leave-full-screen', (_: Event) => {
+  window.on('leave-full-screen', () => {
     window.webContents.send(
       SetSidePanelVisibilityMessage.type,
       new SetSidePanelVisibilityMessage(true)
@@ -540,15 +555,17 @@ function exportHoudiniCamera(window: BrowserWindow, payload: HoudiniExportPayloa
       imagePath
     )
     writeFileSync(scriptPath, script)
-    clipboard.writeText(script)
 
-    dialog.showMessageBox(window, {
-      type: 'info',
-      message: 'Houdini camera exported',
-      detail: 'The script is also on the clipboard. In Houdini, paste it into ' +
-        'the Python shell or choose File > Run Script and pick ' + basename(scriptPath) + '.'
-    }).catch((_) => {
-      //
+    // Writing to the clipboard can fail, e.g when another program holds it
+    return clipboard.writeText(script).then(() => true, () => false).then((isOnClipboard) => {
+      return dialog.showMessageBox(window, {
+        type: 'info',
+        message: 'Houdini camera exported',
+        detail: isOnClipboard
+          ? 'The script is also on the clipboard. In Houdini, paste it into ' +
+            'the Python shell or choose File > Run Script and pick ' + basename(scriptPath) + '.'
+          : 'In Houdini, choose File > Run Script and pick ' + basename(scriptPath) + '.'
+      })
     })
   }).catch((error) => {
     dialog.showErrorBox('Failed to export Houdini camera', String(error))

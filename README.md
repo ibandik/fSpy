@@ -48,6 +48,12 @@ To install necessary dependencies, run
 yarn
 ```
 
+This needs Node.js 22.15 or later and yarn 1. The Electron package no longer downloads the Electron executable while installing. `yarn electron-dev` fetches it when it is first needed. To fetch it right away, run `node node_modules/electron/install.js`.
+
+`yarn test` runs the tests in the `tests` folder and `yarn lint` checks the code style. `yarn dist-preview` makes an unpacked build of the app in `dist`. Windows builds are 64 bit only, since Electron has no 32 bit Windows version any more.
+
+TypeScript is kept at version 6. The webpack loader and the linter use the compiler API that TypeScript 7 no longer has.
+
 The `src` folder contains two subfolders `main` and `gui`, containing code for the [Electron main and renderer processes](https://electronjs.org/docs/tutorial/application-architecture) respectively.
 
 Here's how to run the app in development mode

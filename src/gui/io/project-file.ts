@@ -22,8 +22,7 @@ import { StoreState } from '../types/store-state'
 import SavedState from './saved-state'
 import { AppAction, loadState, setProjectFilePath } from '../actions'
 import { Dispatch } from 'redux'
-import { loadImage, resourcePath } from './util'
-import { remote } from 'electron'
+import { loadImage, resourcePath, showErrorBox } from './util'
 import { defaultResultDisplaySettings } from '../defaults/result-display-settings'
 import { cameraPresets } from '../solver/camera-presets'
 import { ReferenceDistanceUnit } from '../types/calibration-settings'
@@ -65,9 +64,9 @@ export default class ProjectFile {
     let stateToSave = this.getStateToSave()
 
     let stateJsonString = JSON.stringify(stateToSave)
-    let stateBuffer = new Buffer(stateJsonString)
+    let stateBuffer = Buffer.from(stateJsonString)
 
-    let headerBuffer = new Buffer(16)
+    let headerBuffer = Buffer.alloc(16)
 
     headerBuffer.writeUInt8(this.PROJECT_FILE_ID.charCodeAt(0), 0)
     headerBuffer.writeUInt8(this.PROJECT_FILE_ID.charCodeAt(1), 1)
@@ -93,16 +92,16 @@ export default class ProjectFile {
 
   static load(path: string, dispatch: Dispatch<AppAction>, isExampleProject: boolean) {
     if (!this.isProjectFile(path)) {
-      remote.dialog.showErrorBox(// TODO: proper modal
+      showErrorBox(// TODO: proper modal
         'Failed to load project',
         'This does not appear to be a valid project file'
       )
     } else {
-      let buffer = new Buffer(0)
+      let buffer = Buffer.alloc(0)
       try {
         buffer = readFileSync(path)
       } catch {
-        remote.dialog.showErrorBox(// TODO: proper modal
+        showErrorBox(// TODO: proper modal
           'Failed to load image data',
           'Could not load the image data contained in the project file'
         )
@@ -112,7 +111,7 @@ export default class ProjectFile {
       let headerSize = 16
       let projectFileVersion = buffer.readUInt32LE(4)
       if (projectFileVersion != this.PROJECT_FILE_VERSION) {
-        remote.dialog.showErrorBox(// TODO: proper modal
+        showErrorBox(// TODO: proper modal
           'Failed to load project',
           'Version ' + projectFileVersion + ' project files are not compatible with this version of fSpy.'
         )
@@ -184,7 +183,7 @@ export default class ProjectFile {
               )
             },
             () => {
-              remote.dialog.showErrorBox(
+              showErrorBox(
                 'Failed to load image data',
                 'Could not load the image data contained in the project file'
               )
@@ -219,7 +218,7 @@ export default class ProjectFile {
       return false
     }
 
-    let buffer = new Buffer(4)
+    let buffer = Buffer.alloc(4)
     readSync(file, buffer, 0, 4, 0)
     closeSync(file)
     let fileId = [

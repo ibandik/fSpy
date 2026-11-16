@@ -34,6 +34,31 @@ export class SpecifyExportPathMessage {
   }
 }
 
+// The renderer can no longer show native dialogs or use the clipboard module itself
+
+export class ShowErrorMessage {
+  static readonly type = 'ShowErrorMessage'
+  readonly title: string
+  readonly content: string
+  constructor(title: string, content: string) {
+    this.title = title
+    this.content = content
+  }
+}
+
+export class CopyTextMessage {
+  static readonly type = 'CopyTextMessage'
+  readonly text: string
+  constructor(text: string) {
+    this.text = text
+  }
+}
+
+/** Synchronous. The main process answers with the version of the app. */
+export class GetAppVersionMessage {
+  static readonly type = 'GetAppVersionMessage'
+}
+
 export class OpenDroppedProjectMessage {
   static readonly type = 'OpenDroppedProjectMessage'
   readonly filePath: string
