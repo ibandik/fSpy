@@ -41,6 +41,16 @@ export function globalSettings(state: GlobalSettings | undefined, action: AppAct
         ...state,
         overlay3DGuide: action.overlay3DGuide
       }
+    case ActionTypes.SET_SNAP_TO_EDGES:
+      return {
+        ...state,
+        snapToEdges: action.enabled
+      }
+    case ActionTypes.SET_LENS_DISTORTION_GUIDE_ENABLED:
+      return {
+        ...state,
+        lensDistortionGuideEnabled: action.enabled
+      }
     case ActionTypes.LOAD_STATE:
       return action.savedState.globalSettings
     case ActionTypes.LOAD_DEFAULT_STATE:

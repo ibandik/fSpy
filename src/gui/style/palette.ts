@@ -39,6 +39,7 @@ export class Palette {
   static readonly originColor = Palette.white
   static readonly referenceDistanceControlColor = Palette.yellow
   static readonly principalPointColor = Palette.orange
+  static readonly lensDistortionGuideColor = '#e86bff'
 
   static colorForAxis(axis: Axis): string {
     switch (axis) {

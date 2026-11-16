@@ -21,7 +21,8 @@ import { Palette } from '../../style/palette'
 
 export enum BulletListType {
   Warnings,
-  Errors
+  Errors,
+  Info
 }
 
 interface BulletListProps {
@@ -40,13 +41,22 @@ export default class BulletList extends React.PureComponent<BulletListProps> {
 
   private renderBullet(index: number, message: string) {
     return (
-      <li key={index} style={{ color: Palette.disabledTextColor, display: 'flex' }}>
+      <li key={index} style={{ color: Palette.disabledTextColor, display: 'flex', marginBottom: '4px' }}>
         {this.renderIcon()} {message}
       </li>
     )
   }
 
   private renderIcon() {
+    if (this.props.type == BulletListType.Info) {
+      return (
+        <div style={{ paddingRight: '4px', paddingTop: '2px' }}>
+          <svg width={12} height={12}>
+            <circle cx={6} cy={6} r={2.5} fill={Palette.disabledTextColor} />
+          </svg>
+        </div>
+      )
+    }
     let isError = this.props.type == BulletListType.Errors
     let points: number[] = []
     if (isError) {

@@ -39,6 +39,9 @@ import Solver from '../../solver/solver'
 import MathUtil from '../../solver/math-util'
 import AABBOps from '../../solver/aabb-ops'
 import MagnifyingGlass from './magnifying-glass'
+import ControlPolyline from './control-polyline'
+import ControlPoint from './control-point'
+import { defaultLensDistortionGuide } from '../../defaults/control-points-state'
 
 interface ControlPointsPanelState {
   width: number | undefined
@@ -278,6 +281,9 @@ export default class ControlPointsPanel extends React.Component<ControlPointsPan
               this.abs2RelPoint(position)
             )
           }}
+          onLineDragEnd={(lineSegmentIndex: number) => {
+            this.props.callbacks.onVanishingPointLineDragEnd(0, lineSegmentIndex)
+          }}
         />
         <OriginControl
           absolutePosition={this.rel2AbsPoint(this.props.controlPointsStateBase.origin)}
@@ -289,6 +295,32 @@ export default class ControlPointsPanel extends React.Component<ControlPointsPan
           }}
         />
         {this.renderReferenceDistanceControl()}
+        {this.renderLensDistortionGuide()}
+      </Group>
+    )
+  }
+
+  private renderLensDistortionGuide() {
+    if (!this.props.globalSettings.lensDistortionGuideEnabled) {
+      return null
+    }
+    const guide = (this.props.controlPointsStateBase.lensDistortionGuide || defaultLensDistortionGuide).map((point) => {
+      return this.rel2AbsPoint(point)
+    })
+    return (
+      <Group>
+        <ControlPolyline points={guide} color={Palette.lensDistortionGuideColor} dashed={true} />
+        {guide.map((point, index) => (
+          <ControlPoint
+            key={index}
+            absolutePosition={point}
+            fill={Palette.lensDistortionGuideColor}
+            onControlPointDrag={(position: Point2D) => {
+              this.didDragControlPoint(position)
+              this.props.callbacks.onLensDistortionGuideDrag(index, this.abs2RelPoint(position))
+            }}
+          />
+        ))}
       </Group>
     )
   }
@@ -498,6 +530,11 @@ export default class ControlPointsPanel extends React.Component<ControlPointsPan
               )
             }
           }}
+          onLineDragEnd={(lineSegmentIndex: number) => {
+            if (!this.props.calbrationSettings2VP.quadModeEnabled) {
+              this.props.callbacks.onVanishingPointLineDragEnd(1, lineSegmentIndex)
+            }
+          }}
         />
         {this.renderThirdVanishingPointControl()}
         {this.renderPrincipalPoint2VP()}
@@ -527,6 +564,9 @@ export default class ControlPointsPanel extends React.Component<ControlPointsPan
             pointPairIndex,
             this.abs2RelPoint(position)
           )
+        }}
+        onLineDragEnd={(lineSegmentIndex: number) => {
+          this.props.callbacks.onVanishingPointLineDragEnd(2, lineSegmentIndex)
         }}
       />
     )
@@ -609,10 +649,7 @@ export default class ControlPointsPanel extends React.Component<ControlPointsPan
 
   private rel2AbsVanishingPointControlState(state: VanishingPointControlState): VanishingPointControlState {
     return {
-      lineSegments: [
-        this.rel2AbsControlPointPairState(state.lineSegments[0]),
-        this.rel2AbsControlPointPairState(state.lineSegments[1])
-      ]
+      lineSegments: state.lineSegments.map((segment) => this.rel2AbsControlPointPairState(segment))
     }
   }
 

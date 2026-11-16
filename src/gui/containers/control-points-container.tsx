@@ -24,7 +24,7 @@ import { connect } from 'react-redux'
 import { GlobalSettings } from '../types/global-settings'
 import ControlPointsPanel from '../components/control-points-panel/control-points-panel'
 import Point2D from '../solver/point-2d'
-import { AppAction, setPrincipalPoint, setOrigin, setReferenceDistanceAnchor, adjustHorizon, adjustReferenceDistanceHandle, adjustFirstVanishingPoint, adjustSecondVanishingPoint, adjustThirdVanishingPoint } from '../actions'
+import { AppAction, setPrincipalPoint, setOrigin, setReferenceDistanceAnchor, adjustHorizon, adjustReferenceDistanceHandle, adjustFirstVanishingPoint, adjustSecondVanishingPoint, adjustThirdVanishingPoint, adjustLensDistortionGuide, snapVanishingPointLineToEdge } from '../actions'
 import { CalibrationSettingsBase, CalibrationSettings1VP, CalibrationSettings2VP } from '../types/calibration-settings'
 import { SolverResult } from '../solver/solver-result'
 import { Dispatch } from 'redux'
@@ -53,6 +53,9 @@ export interface ControlPointsContainerCallbacks {
     controlPointIndex: ControlPointPairIndex,
     position: Point2D
   ): void
+  /** A control point of a vanishing point line was released. vanishingPointIndex is 0, 1 or 2. */
+  onVanishingPointLineDragEnd(vanishingPointIndex: number, lineSegmentIndex: number): void
+  onLensDistortionGuideDrag(pointIndex: number, position: Point2D): void
 }
 
 interface ControlPointsContainerProps {
@@ -153,6 +156,12 @@ export function mapDispatchToProps(dispatch: Dispatch<AppAction>) {
       position: Point2D
     ) => {
       dispatch(adjustHorizon(controlPointIndex, position))
+    },
+    onVanishingPointLineDragEnd: (vanishingPointIndex: number, lineSegmentIndex: number) => {
+      dispatch<any>(snapVanishingPointLineToEdge(vanishingPointIndex, lineSegmentIndex))
+    },
+    onLensDistortionGuideDrag: (pointIndex: number, position: Point2D) => {
+      dispatch(adjustLensDistortionGuide(pointIndex, position))
     }
   }
 }

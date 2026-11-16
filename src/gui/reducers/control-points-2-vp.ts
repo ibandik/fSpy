@@ -19,6 +19,7 @@
 import { ActionTypes, AppAction } from '../actions'
 import { ControlPointsState2VP } from '../types/control-points-state'
 import { defaultControlPointsState2VP } from '../defaults/control-points-state'
+import { withLineCount, withLineSegment } from '../solver/vanishing-point-lines'
 
 export function controlPointsState2VP(state: ControlPointsState2VP | undefined, action: AppAction): ControlPointsState2VP {
   if (state === undefined) {
@@ -50,6 +51,32 @@ export function controlPointsState2VP(state: ControlPointsState2VP | undefined, 
         thirdVanishingPoint: thirdVanishingPoint
       }
     }
+    case ActionTypes.SET_VANISHING_POINT_LINE_COUNT:
+      if (action.vanishingPointIndex == 1) {
+        return {
+          ...state,
+          secondVanishingPoint: withLineCount(state.secondVanishingPoint, action.lineCount)
+        }
+      } else if (action.vanishingPointIndex == 2) {
+        return {
+          ...state,
+          thirdVanishingPoint: withLineCount(state.thirdVanishingPoint, action.lineCount)
+        }
+      }
+      return state
+    case ActionTypes.SET_VANISHING_POINT_LINE:
+      if (action.vanishingPointIndex == 1) {
+        return {
+          ...state,
+          secondVanishingPoint: withLineSegment(state.secondVanishingPoint, action.lineSegmentIndex, action.lineSegment)
+        }
+      } else if (action.vanishingPointIndex == 2) {
+        return {
+          ...state,
+          thirdVanishingPoint: withLineSegment(state.thirdVanishingPoint, action.lineSegmentIndex, action.lineSegment)
+        }
+      }
+      return state
     case ActionTypes.LOAD_STATE:
       return action.savedState.controlPointsState2VP
     case ActionTypes.LOAD_DEFAULT_STATE:

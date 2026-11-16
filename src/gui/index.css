@@ -61,6 +61,8 @@ textarea {
   display: flex;
   flex-direction: column;
   height: 100vh;
+  /* The panels can hold more than fits in a small window */
+  overflow-y: auto;
 }
 
 #panel-top-container {

@@ -24,6 +24,9 @@ import { StoreState } from '../types/store-state'
 import { ThunkAction, ThunkDispatch } from 'redux-thunk'
 import Solver from '../solver/solver'
 import { SolverResult } from '../solver/solver-result'
+import { analyse } from '../analysis/analysis'
+import { loadEdgeMap } from '../analysis/edge-map-loader'
+import { snapSegmentToEdge } from '../analysis/edge-snap'
 import SavedState from '../io/saved-state'
 import { ImageState } from '../types/image-state'
 import { OrientationFormat, PrincipalPointFormat, FieldOfViewFormat } from '../types/result-display-settings'
@@ -67,6 +70,11 @@ export enum ActionTypes {
   ADJUST_SECOND_VANISHING_POINT = 'ADJUST_SECOND_VANISHING_POINT',
   ADJUST_THIRD_VANISHING_POINT = 'ADJUST_THIRD_VANISHING_POINT',
   ADJUST_REFERENCE_DISTANCE_HANDLE = 'ADJUST_REFERENCE_DISTANCE_HANDLE',
+  SET_VANISHING_POINT_LINE_COUNT = 'SET_VANISHING_POINT_LINE_COUNT',
+  SET_VANISHING_POINT_LINE = 'SET_VANISHING_POINT_LINE',
+  SET_SNAP_TO_EDGES = 'SET_SNAP_TO_EDGES',
+  SET_LENS_DISTORTION_GUIDE_ENABLED = 'SET_LENS_DISTORTION_GUIDE_ENABLED',
+  ADJUST_LENS_DISTORTION_GUIDE = 'ADJUST_LENS_DISTORTION_GUIDE',
 
   //
   SET_SOLVER_RESULT = 'SET_SOLVER_RESULT',
@@ -100,7 +108,9 @@ export function recalculateCalibrationResult(): ThunkAction<void, StoreState, vo
       )
 
       let is1VPMode = state.globalSettings.calibrationMode == CalibrationMode.OneVanishingPoint
-      dispatch(setSolverResult(is1VPMode ? result1VP : result2VP))
+      let result = is1VPMode ? result1VP : result2VP
+      result.checks = analyse(state, result)
+      dispatch(setSolverResult(result))
     },
     0)
   }
@@ -513,6 +523,127 @@ export interface SetSolverResult {
   result: SolverResult
 }
 
+export interface SetVanishingPointLineCount {
+  type: ActionTypes.SET_VANISHING_POINT_LINE_COUNT
+  /** 0, 1 or 2 for the first, second or third vanishing point */
+  vanishingPointIndex: number
+  lineCount: number
+}
+
+export function setVanishingPointLineCount(vanishingPointIndex: number, lineCount: number): SetVanishingPointLineCount {
+  return {
+    type: ActionTypes.SET_VANISHING_POINT_LINE_COUNT,
+    vanishingPointIndex: vanishingPointIndex,
+    lineCount: lineCount
+  }
+}
+
+// Replaces one line segment of a vanishing point control, e.g after snapping it to an edge
+export interface SetVanishingPointLine {
+  type: ActionTypes.SET_VANISHING_POINT_LINE
+  /** 0, 1 or 2 for the first, second or third vanishing point */
+  vanishingPointIndex: number
+  lineSegmentIndex: number
+  lineSegment: [Point2D, Point2D]
+}
+
+export function setVanishingPointLine(
+  vanishingPointIndex: number,
+  lineSegmentIndex: number,
+  lineSegment: [Point2D, Point2D]
+): SetVanishingPointLine {
+  return {
+    type: ActionTypes.SET_VANISHING_POINT_LINE,
+    vanishingPointIndex: vanishingPointIndex,
+    lineSegmentIndex: lineSegmentIndex,
+    lineSegment: lineSegment
+  }
+}
+
+// How far, in edge map pixels, an end point of a line may move when the line snaps to an edge.
+// The edge map is up to 2048 pixels wide, so this is about six pixels on screen.
+const EDGE_SNAP_SEARCH_RADIUS = 12
+
+/**
+ * Moves a line of a vanishing point control onto the nearest
+ * image edge, if snapping is turned on and there is an edge nearby
+ */
+export function snapVanishingPointLineToEdge(
+  vanishingPointIndex: number,
+  lineSegmentIndex: number
+): ThunkAction<void, StoreState, void, AppAction> {
+  return (dispatch: ThunkDispatch<StoreState, void, AppAction>, getState: () => StoreState) => {
+    const imageUrl = getState().image.url
+    if (!getState().globalSettings.snapToEdges || imageUrl === null) {
+      return
+    }
+    loadEdgeMap(imageUrl).then((edgeMap) => {
+      const state = getState()
+      const controlStates = [
+        state.controlPointsStateBase.firstVanishingPoint,
+        state.controlPointsState2VP.secondVanishingPoint,
+        state.controlPointsState2VP.thirdVanishingPoint
+      ]
+      const lineSegment = controlStates[vanishingPointIndex].lineSegments[lineSegmentIndex]
+      if (state.image.url !== imageUrl || !lineSegment) {
+        return
+      }
+      const snapped = snapSegmentToEdge(
+        edgeMap,
+        { x: lineSegment[0].x * edgeMap.width, y: lineSegment[0].y * edgeMap.height },
+        { x: lineSegment[1].x * edgeMap.width, y: lineSegment[1].y * edgeMap.height },
+        EDGE_SNAP_SEARCH_RADIUS
+      )
+      if (snapped) {
+        dispatch(setVanishingPointLine(vanishingPointIndex, lineSegmentIndex, [
+          { x: snapped[0].x / edgeMap.width, y: snapped[0].y / edgeMap.height },
+          { x: snapped[1].x / edgeMap.width, y: snapped[1].y / edgeMap.height }
+        ]))
+      }
+    }).catch((_) => {
+      // Without pixels to look at, the line stays where it was put
+    })
+  }
+}
+
+export interface SetSnapToEdges {
+  type: ActionTypes.SET_SNAP_TO_EDGES
+  enabled: boolean
+}
+
+export function setSnapToEdges(enabled: boolean): SetSnapToEdges {
+  return {
+    type: ActionTypes.SET_SNAP_TO_EDGES,
+    enabled: enabled
+  }
+}
+
+export interface SetLensDistortionGuideEnabled {
+  type: ActionTypes.SET_LENS_DISTORTION_GUIDE_ENABLED
+  enabled: boolean
+}
+
+export function setLensDistortionGuideEnabled(enabled: boolean): SetLensDistortionGuideEnabled {
+  return {
+    type: ActionTypes.SET_LENS_DISTORTION_GUIDE_ENABLED,
+    enabled: enabled
+  }
+}
+
+export interface AdjustLensDistortionGuide {
+  type: ActionTypes.ADJUST_LENS_DISTORTION_GUIDE
+  pointIndex: number
+  position: Point2D
+}
+
+export function adjustLensDistortionGuide(pointIndex: number, position: Point2D): AdjustLensDistortionGuide {
+  return {
+    type: ActionTypes.ADJUST_LENS_DISTORTION_GUIDE,
+    pointIndex: pointIndex,
+    position: position
+  }
+}
+
 export function setSolverResult(result: SolverResult): SetSolverResult {
   return {
     type: ActionTypes.SET_SOLVER_RESULT,
@@ -610,6 +741,11 @@ export type AppAction =
   AdjustFirstVanishingPoint |
   AdjustSecondVanishingPoint |
   AdjustThirdVanishingPoint |
+  SetVanishingPointLineCount |
+  SetVanishingPointLine |
+  SetSnapToEdges |
+  SetLensDistortionGuideEnabled |
+  AdjustLensDistortionGuide |
   SetSolverResult |
   SetOrientationDisplayFormat |
   SetFieldOfViewDisplayFormat |
@@ -645,7 +781,11 @@ export const actionTypesTriggeringRecalculation: ActionTypes[] = [
   ActionTypes.ADJUST_FIRST_VANISHING_POINT,
   ActionTypes.ADJUST_SECOND_VANISHING_POINT,
   ActionTypes.ADJUST_THIRD_VANISHING_POINT,
-  ActionTypes.ADJUST_REFERENCE_DISTANCE_HANDLE
+  ActionTypes.ADJUST_REFERENCE_DISTANCE_HANDLE,
+  ActionTypes.SET_VANISHING_POINT_LINE_COUNT,
+  ActionTypes.SET_VANISHING_POINT_LINE,
+  ActionTypes.SET_LENS_DISTORTION_GUIDE_ENABLED,
+  ActionTypes.ADJUST_LENS_DISTORTION_GUIDE
 ]
 
 export const actionTypesSettingNeedsSaveFlag: ActionTypes[] = [
@@ -677,6 +817,11 @@ export const actionTypesSettingNeedsSaveFlag: ActionTypes[] = [
   ActionTypes.ADJUST_SECOND_VANISHING_POINT,
   ActionTypes.ADJUST_THIRD_VANISHING_POINT,
   ActionTypes.ADJUST_REFERENCE_DISTANCE_HANDLE,
+  ActionTypes.SET_VANISHING_POINT_LINE_COUNT,
+  ActionTypes.SET_VANISHING_POINT_LINE,
+  ActionTypes.SET_SNAP_TO_EDGES,
+  ActionTypes.SET_LENS_DISTORTION_GUIDE_ENABLED,
+  ActionTypes.ADJUST_LENS_DISTORTION_GUIDE,
 
   ActionTypes.SET_PRINCIPAL_POINT_DISPLAY_FORMAT,
   ActionTypes.SET_FOV_DISPLAY_FORMAT,

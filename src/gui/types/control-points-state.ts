@@ -35,7 +35,11 @@ export enum ControlPointPairIndex {
 }
 
 export interface VanishingPointControlState {
-  lineSegments: [ControlPointPairState, ControlPointPairState]
+  /**
+   * Two or more line segments along edges that are parallel in the scene.
+   * With more than two, the vanishing point is the point that fits them best.
+   */
+  lineSegments: ControlPointPairState[]
 }
 
 export interface ControlPointsStateBase {
@@ -47,6 +51,11 @@ export interface ControlPointsStateBase {
   // along the axis from the anchor to the vanishing point corresponding
   // to the selected reference axis
   referenceDistanceHandleOffsets: [number, number]
+  /**
+   * Points placed along an edge that is straight in the scene, for
+   * measuring lens distortion. Missing in projects from older versions.
+   */
+  lensDistortionGuide?: ControlPointState[]
 }
 
 export interface ControlPointsState1VP {

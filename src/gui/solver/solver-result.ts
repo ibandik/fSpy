@@ -33,8 +33,18 @@ export interface CameraParameters {
   imageHeight: number
 }
 
+/**
+ * Something the user should know about the image or the result,
+ * found by looking at both after solving
+ */
+export interface Check {
+  level: 'info' | 'warning'
+  message: string
+}
+
 export interface SolverResult {
   errors: string[]
   warnings: string[]
   cameraParameters: CameraParameters | null
+  checks: Check[]
 }

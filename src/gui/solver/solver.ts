@@ -537,6 +537,40 @@ export default class Solver {
   }
 
   /**
+   * Computes the vanishing point that the line segments of a vanishing
+   * point control point at.
+   * @returns The vanishing point in image plane coordinates and, for more than
+   * two line segments, how well they agree: the root mean square distance in
+   * pixels of the segment end points from lines through the vanishing point.
+   * Null if the segments are parallel.
+   */
+  static vanishingPointFit(
+    image: ImageState,
+    controlPointState: VanishingPointControlState
+  ): { vanishingPoint: Point2D, rmsError: number } | null {
+    // Fit in pixels. Relative coordinates are stretched for non square images.
+    const toPixels = (point: Point2D) => {
+      return { x: point.x * image.width!, y: point.y * image.height! }
+    }
+    const fit = MathUtil.bestIntersection(
+      controlPointState.lineSegments.map((segment): [Point2D, Point2D] => [toPixels(segment[0]), toPixels(segment[1])])
+    )
+    if (!fit) {
+      return null
+    }
+    return {
+      vanishingPoint: CoordinatesUtil.convert(
+        fit.point,
+        ImageCoordinateFrame.Absolute,
+        ImageCoordinateFrame.ImagePlane,
+        image.width!,
+        image.height!
+      ),
+      rmsError: fit.rmsError
+    }
+  }
+
+  /**
    * Computes the coordinates of the second vanishing point
    * based on the first, a focal length, the center of projection and
    * the desired horizon tilt angle. The equations here are derived from
@@ -609,14 +643,17 @@ export default class Solver {
     warnings: string[]
   ) {
     controlPointStates.forEach((controlPointState, stateIndex) => {
-      const line1Direction = MathUtil.normalized(
-        MathUtil.difference(controlPointState.lineSegments[0][1], controlPointState.lineSegments[0][0])
-      )
-      const line2Direction = MathUtil.normalized(
-        MathUtil.difference(controlPointState.lineSegments[1][1], controlPointState.lineSegments[1][0])
-      )
-      const dot = MathUtil.dot(line1Direction, line2Direction)
-      if (Math.abs(dot) > 0.99995) {
+      // Warn if no two lines of the vanishing point differ noticeably in direction
+      const directions = controlPointState.lineSegments.map((segment) => {
+        return MathUtil.normalized(MathUtil.difference(segment[1], segment[0]))
+      })
+      let smallestDot = 1
+      for (let i = 0; i < directions.length; i++) {
+        for (let j = i + 1; j < directions.length; j++) {
+          smallestDot = Math.min(smallestDot, Math.abs(MathUtil.dot(directions[i], directions[j])))
+        }
+      }
+      if (smallestDot > 0.99995) {
         warnings.push('Near parallel lines for VP ' + (stateIndex + 1))
       }
     })
@@ -636,20 +673,9 @@ export default class Solver {
   ): Point2D[] | null {
     let result: Point2D[] = []
     for (let i = 0; i < controlPointStates.length; i++) {
-      let vanishingPoint = MathUtil.lineIntersection(
-        controlPointStates[i].lineSegments[0],
-        controlPointStates[i].lineSegments[1]
-      )
-      if (vanishingPoint) {
-        result.push(
-          CoordinatesUtil.convert(
-            vanishingPoint,
-            ImageCoordinateFrame.Relative,
-            ImageCoordinateFrame.ImagePlane,
-            image.width!,
-            image.height!
-          )
-        )
+      let fit = this.vanishingPointFit(image, controlPointStates[i])
+      if (fit) {
+        result.push(fit.vanishingPoint)
       } else {
         errors.push('Failed to compute vanishing point')
       }

@@ -63,6 +63,7 @@ export default class ResultPanel extends React.PureComponent<ResultPanelProps> {
         <div id='panel-container'>
           {this.renderErrors()}
           {this.renderCameraParameters()}
+          {this.renderChecks()}
         </div>
       </div>
     )
@@ -324,6 +325,22 @@ export default class ResultPanel extends React.PureComponent<ResultPanelProps> {
           >
         <TableRow value={absoluteFocalLength} title='Value (mm)' />
       </CameraPresetForm>
+      </div>
+    )
+  }
+
+  private renderChecks() {
+    const checks = this.props.solverResult.checks
+    if (checks.length == 0) {
+      return null
+    }
+    const warnings = checks.filter((check) => check.level == 'warning').map((check) => check.message)
+    const notes = checks.filter((check) => check.level == 'info').map((check) => check.message)
+    return (
+      <div className='panel-section top-border'>
+        <div className='panel-group-title'>Checks</div>
+        <BulletList messages={warnings} type={BulletListType.Warnings} />
+        <BulletList messages={notes} type={BulletListType.Info} />
       </div>
     )
   }

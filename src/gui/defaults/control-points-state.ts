@@ -29,7 +29,12 @@ const defaultReferenceDistanceAnchor = {
   y: 0.6779647921622778
 }
 
+export const defaultLensDistortionGuide = [0.15, 0.325, 0.5, 0.675, 0.85].map((x) => {
+  return { x: x, y: 0.12 }
+})
+
 export const defaultControlPointsStateBase: ControlPointsStateBase = {
+  lensDistortionGuide: defaultLensDistortionGuide,
   principalPoint: {
     x: 0.5,
     y: 0.5

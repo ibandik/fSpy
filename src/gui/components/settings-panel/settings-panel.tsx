@@ -30,6 +30,7 @@ import Dropdown from '../common/dropdown'
 import { Palette } from '../../style/palette'
 import NumericInputField from '../common/numeric-input-field'
 import { cameraPresets } from '../../solver/camera-presets'
+import { MIN_VANISHING_POINT_LINE_COUNT, MAX_VANISHING_POINT_LINE_COUNT } from '../../solver/vanishing-point-lines'
 
 export default class SettingsPanel extends React.PureComponent<SettingsContainerProps> {
   render() {
@@ -77,6 +78,7 @@ export default class SettingsPanel extends React.PureComponent<SettingsContainer
                 />
               </div>
             </div>
+            {this.renderLineCountSettings()}
             <div className='panel-section'>
               <div className='panel-group-title'>
                 Reference distance
@@ -114,7 +116,63 @@ export default class SettingsPanel extends React.PureComponent<SettingsContainer
               }}
             />
           </div>
+          <div className='panel-section top-border'>
+            <div className='panel-group-title'>
+              Image aids
+            </div>
+            <Checkbox
+              title={'Snap lines to edges'}
+              isSelected={this.props.globalSettings.snapToEdges === true}
+              onChange={this.props.onSnapToEdgesChange}
+            />
+            <PanelSpacer />
+            <Checkbox
+              title={'Lens distortion guide'}
+              isSelected={this.props.globalSettings.lensDistortionGuideEnabled === true}
+              onChange={this.props.onLensDistortionGuideEnabledChange}
+            />
+          </div>
         </div>
+      </div>
+    )
+  }
+
+  private renderLineCountSettings() {
+    const is1VPMode = this.props.globalSettings.calibrationMode == CalibrationMode.OneVanishingPoint
+    const settings2VP = this.props.calibrationSettings2VP
+    // The vanishing points whose lines the user places
+    const vanishingPointIndices = [0]
+    if (!is1VPMode && !settings2VP.quadModeEnabled) {
+      vanishingPointIndices.push(1)
+    }
+    if (!is1VPMode && settings2VP.principalPointMode == PrincipalPointMode2VP.FromThirdVanishingPoint) {
+      vanishingPointIndices.push(2)
+    }
+    const lineCountOptions: number[] = []
+    for (let lineCount = MIN_VANISHING_POINT_LINE_COUNT; lineCount <= MAX_VANISHING_POINT_LINE_COUNT; lineCount++) {
+      lineCountOptions.push(lineCount)
+    }
+    return (
+      <div className='panel-section'>
+        <div className='panel-group-title'>
+          Lines per vanishing point
+        </div>
+        {vanishingPointIndices.map((vanishingPointIndex, rowIndex) => (
+          <div key={vanishingPointIndex} style={{ display: 'flex', marginTop: rowIndex == 0 ? 0 : 6 }}>
+            <span style={{ alignSelf: 'center', paddingRight: 6, paddingLeft: 4 }}>{vanishingPointIndex + 1}</span>
+            <div style={{ flexGrow: 1 }}>
+              <Dropdown
+                options={lineCountOptions.map((lineCount) => {
+                  return { value: lineCount, id: lineCount.toString(), title: lineCount.toString() }
+                })}
+                selectedOptionId={this.props.vanishingPointLineCounts[vanishingPointIndex].toString()}
+                onOptionSelected={(lineCount: number) => {
+                  this.props.onVanishingPointLineCountChange(vanishingPointIndex, lineCount)
+                }}
+              />
+            </div>
+          </div>
+        ))}
       </div>
     )
   }

@@ -19,7 +19,7 @@
 import * as React from 'react'
 import { connect } from 'react-redux'
 import { Dispatch } from 'redux'
-import { AppAction, setCalibrationMode, setImageOpacity, setPrincipalPointMode1VP, setPrincipalPointMode2VP, setQuadModeEnabled, setReferenceDistanceUnit, setReferenceDistance, setReferenceDistanceAxis, setCameraPreset, setCameraSensorSize, setFirstVanishingPointAxis, setSecondVanishingPointAxis, setAbsoluteFocalLength1VP, setOverlay3DGuide } from '../actions'
+import { AppAction, setCalibrationMode, setImageOpacity, setPrincipalPointMode1VP, setPrincipalPointMode2VP, setQuadModeEnabled, setReferenceDistanceUnit, setReferenceDistance, setReferenceDistanceAxis, setCameraPreset, setCameraSensorSize, setFirstVanishingPointAxis, setSecondVanishingPointAxis, setAbsoluteFocalLength1VP, setOverlay3DGuide, setVanishingPointLineCount, setSnapToEdges, setLensDistortionGuideEnabled } from '../actions'
 import SettingsPanel from '../components/settings-panel/settings-panel'
 import { CalibrationMode, GlobalSettings, Overlay3DGuide } from '../types/global-settings'
 import { StoreState } from '../types/store-state'
@@ -31,6 +31,11 @@ export interface SettingsContainerProps {
   calibrationSettingsBase: CalibrationSettingsBase
   calibrationSettings1VP: CalibrationSettings1VP
   calibrationSettings2VP: CalibrationSettings2VP
+  /** The number of line segments of the first, second and third vanishing point */
+  vanishingPointLineCounts: number[]
+  onVanishingPointLineCountChange(vanishingPointIndex: number, lineCount: number): void
+  onSnapToEdgesChange(enabled: boolean): void
+  onLensDistortionGuideEnabledChange(enabled: boolean): void
   onCalibrationModeChange(calibrationMode: CalibrationMode): void
   onImageOpacityChange(opacity: number): void
   onOverlay3DGuideChange(overlay3DGuide: Overlay3DGuide): void
@@ -63,7 +68,12 @@ export function mapStateToProps(state: StoreState) {
     globalSettings: state.globalSettings,
     calibrationSettingsBase: state.calibrationSettingsBase,
     calibrationSettings1VP: state.calibrationSettings1VP,
-    calibrationSettings2VP: state.calibrationSettings2VP
+    calibrationSettings2VP: state.calibrationSettings2VP,
+    vanishingPointLineCounts: [
+      state.controlPointsStateBase.firstVanishingPoint.lineSegments.length,
+      state.controlPointsState2VP.secondVanishingPoint.lineSegments.length,
+      state.controlPointsState2VP.thirdVanishingPoint.lineSegments.length
+    ]
   }
 }
 
@@ -71,6 +81,15 @@ export function mapDispatchToProps(dispatch: Dispatch<AppAction>) {
   return {
     onCalibrationModeChange: (calibrationMode: CalibrationMode) => {
       dispatch(setCalibrationMode(calibrationMode))
+    },
+    onVanishingPointLineCountChange: (vanishingPointIndex: number, lineCount: number) => {
+      dispatch(setVanishingPointLineCount(vanishingPointIndex, lineCount))
+    },
+    onSnapToEdgesChange: (enabled: boolean) => {
+      dispatch(setSnapToEdges(enabled))
+    },
+    onLensDistortionGuideEnabledChange: (enabled: boolean) => {
+      dispatch(setLensDistortionGuideEnabled(enabled))
     },
     onImageOpacityChange: (opacity: number) => {
       dispatch(setImageOpacity(opacity))

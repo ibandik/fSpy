@@ -95,6 +95,79 @@ export default class MathUtil {
     }
   }
 
+  /**
+   * Finds the point that a number of line segments point at. Two segments
+   * give the intersection of their lines. For more, the result is the point
+   * that fits all of them best: each segment is compared to the line from
+   * its midpoint to the point, and the distances of the segment's end points
+   * from that line are made as small as possible.
+   * The coordinates must have the same scale in x and y, e.g pixels.
+   * @returns the point and the root mean square of the end point distances,
+   * or null if the segments are parallel or one of them has no length
+   */
+  static bestIntersection(lines: [Point2D, Point2D][]): { point: Point2D, rmsError: number } | null {
+    if (lines.length < 2) {
+      return null
+    }
+    if (lines.length == 2) {
+      const intersection = this.lineIntersection(lines[0], lines[1])
+      return intersection ? { point: intersection, rmsError: 0 } : null
+    }
+
+    const midpoints = lines.map((line) => this.lineSegmentMidpoint(line))
+    const halfLengths = lines.map((line) => 0.5 * this.distance(line[0], line[1]))
+    if (halfLengths.some((halfLength) => halfLength < 1e-8)) {
+      return null
+    }
+    const normals = lines.map((line, i) => {
+      return {
+        x: -(line[1].y - line[0].y) / (2 * halfLengths[i]),
+        y: (line[1].x - line[0].x) / (2 * halfLengths[i])
+      }
+    })
+
+    // The end point distance of a segment is h * |n . (p - m)| / |p - m|, with
+    // midpoint m, normal n and half length h. Without the division this is a
+    // linear least squares problem, so solve that repeatedly with the division
+    // by the current distance to the point as a weight.
+    let point = { x: 0, y: 0 }
+    let weights = lines.map(() => 1)
+    let residuals = lines.map(() => 0)
+    for (let iteration = 0; iteration < 10; iteration++) {
+      let a11 = 0
+      let a12 = 0
+      let a22 = 0
+      let b1 = 0
+      let b2 = 0
+      normals.forEach((normal, i) => {
+        const offset = this.dot(normal, midpoints[i])
+        a11 += weights[i] * normal.x * normal.x
+        a12 += weights[i] * normal.x * normal.y
+        a22 += weights[i] * normal.y * normal.y
+        b1 += weights[i] * normal.x * offset
+        b2 += weights[i] * normal.y * offset
+      })
+      const determinant = a11 * a22 - a12 * a12
+      if (Math.abs(determinant) < 1e-12 * (a11 + a22) * (a11 + a22)) {
+        // All segments are parallel
+        return null
+      }
+      point = {
+        x: (a22 * b1 - a12 * b2) / determinant,
+        y: (a11 * b2 - a12 * b1) / determinant
+      }
+      normals.forEach((normal, i) => {
+        const toPoint = this.difference(point, midpoints[i])
+        const distance = Math.max(1e-8, Math.sqrt(this.dot(toPoint, toPoint)))
+        weights[i] = (halfLengths[i] / distance) * (halfLengths[i] / distance)
+        residuals[i] = halfLengths[i] * Math.abs(this.dot(normal, toPoint)) / distance
+      })
+    }
+
+    const meanSquare = residuals.reduce((sum, residual) => sum + residual * residual, 0) / residuals.length
+    return { point: point, rmsError: Math.sqrt(meanSquare) }
+  }
+
   static triangleOrthoCenter(k: Point2D, l: Point2D, m: Point2D): Point2D {
     let a = k.x
     let b = k.y

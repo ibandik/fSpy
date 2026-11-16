@@ -30,12 +30,13 @@ interface VanishingPointControlProps {
   controlState: VanishingPointControlState
   vanishingPoint: Point2D | null
   vanishingPointIndex: number
-
   onControlPointDrag(
     lineSegmentIndex: number,
     pointPairIndex: number,
     position: Point2D
   ): void
+  /** Called when a control point of a line segment is released */
+  onLineDragEnd?(lineSegmentIndex: number): void
 }
 
 export default class VanishingPointControl extends React.PureComponent<VanishingPointControlProps> {
@@ -43,15 +44,19 @@ export default class VanishingPointControl extends React.PureComponent<Vanishing
     return (
       <Group>
         {this.renderVanishingPoint()}
-        {this.renderLineSegment(0)}
-        {this.renderLineSegment(1)}
+        {this.props.controlState.lineSegments.map((_, index) => this.renderLineSegment(index))}
       </Group>
     )
   }
 
   private renderLineSegment(index: number) {
+    const onDragEnd = () => {
+      if (this.props.onLineDragEnd) {
+        this.props.onLineDragEnd(index)
+      }
+    }
     return (
-      <Group>
+      <Group key={index}>
         <ControlPolyline
           number={this.props.vanishingPointIndex + 1}
           points={this.props.controlState.lineSegments[index]}
@@ -63,6 +68,7 @@ export default class VanishingPointControl extends React.PureComponent<Vanishing
           onControlPointDrag={(position: Point2D) => {
             this.props.onControlPointDrag(index, 0, position)
           }}
+          onControlPointDragEnd={onDragEnd}
           fill={this.props.color}
         />
         <ControlPoint
@@ -71,6 +77,7 @@ export default class VanishingPointControl extends React.PureComponent<Vanishing
           onControlPointDrag={(position: Point2D) => {
             this.props.onControlPointDrag(index, 1, position)
           }}
+          onControlPointDragEnd={onDragEnd}
           fill={this.props.color}
         />
       </Group>
@@ -78,23 +85,23 @@ export default class VanishingPointControl extends React.PureComponent<Vanishing
   }
 
   private renderVanishingPoint() {
-    if (!this.props.vanishingPoint) {
+    const vanishingPoint = this.props.vanishingPoint
+    if (!vanishingPoint) {
       return null
     }
 
-    let p1 = MathUtil.lineSegmentMidpoint(
-      this.props.controlState.lineSegments[0]
-    )
-    let p2 = this.props.vanishingPoint
-    let p3 = MathUtil.lineSegmentMidpoint(
-      this.props.controlState.lineSegments[1]
-    )
+    // A dimmed line from the middle of each line segment to the vanishing point
     return (
-      <ControlPolyline
-        color={this.props.color}
-        dimmed={true}
-        points={[p1, p2, p3]}
-      />
+      <Group>
+        {this.props.controlState.lineSegments.map((segment, index) => (
+          <ControlPolyline
+            key={index}
+            color={this.props.color}
+            dimmed={true}
+            points={[MathUtil.lineSegmentMidpoint(segment as [Point2D, Point2D]), vanishingPoint]}
+          />
+        ))}
+      </Group>
     )
   }
 }

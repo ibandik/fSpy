@@ -33,4 +33,8 @@ export interface GlobalSettings {
   calibrationMode: CalibrationMode
   overlay3DGuide: Overlay3DGuide
   imageOpacity: number
+  /** Move a vanishing point line onto the nearest image edge when it is released */
+  snapToEdges?: boolean
+  /** Show the guide for tracing a straight edge to measure lens distortion */
+  lensDistortionGuideEnabled?: boolean
 }

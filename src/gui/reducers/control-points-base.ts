@@ -17,9 +17,10 @@
  */
 
 import { ControlPointsStateBase } from '../types/control-points-state'
-import { defaultControlPointsStateBase } from '../defaults/control-points-state'
+import { defaultControlPointsStateBase, defaultLensDistortionGuide } from '../defaults/control-points-state'
 import { ActionTypes, AppAction } from '../actions'
 import Constants from '../constants'
+import { withLineCount, withLineSegment } from '../solver/vanishing-point-lines'
 
 export function controlPointsStateBase(state: ControlPointsStateBase | undefined, action: AppAction): ControlPointsStateBase {
   if (state === undefined) {
@@ -68,6 +69,29 @@ export function controlPointsStateBase(state: ControlPointsStateBase | undefined
       return {
         ...state,
         firstVanishingPoint: adjustedVanishingPoint
+      }
+    case ActionTypes.SET_VANISHING_POINT_LINE_COUNT:
+      if (action.vanishingPointIndex != 0) {
+        return state
+      }
+      return {
+        ...state,
+        firstVanishingPoint: withLineCount(state.firstVanishingPoint, action.lineCount)
+      }
+    case ActionTypes.SET_VANISHING_POINT_LINE:
+      if (action.vanishingPointIndex != 0) {
+        return state
+      }
+      return {
+        ...state,
+        firstVanishingPoint: withLineSegment(state.firstVanishingPoint, action.lineSegmentIndex, action.lineSegment)
+      }
+    case ActionTypes.ADJUST_LENS_DISTORTION_GUIDE:
+      let adjustedGuide = [...(state.lensDistortionGuide || defaultLensDistortionGuide)]
+      adjustedGuide[action.pointIndex] = action.position
+      return {
+        ...state,
+        lensDistortionGuide: adjustedGuide
       }
     case ActionTypes.LOAD_STATE:
       return action.savedState.controlPointsStateBase

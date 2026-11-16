@@ -30,6 +30,8 @@ interface ControlPointProps {
   isDragDisabled?: boolean
   lineNormal?: Point2D // TODO: less cryptic API to draw line control points
   onControlPointDrag(absolutePosition: Point2D): void
+  /** Called when the control point is released after a drag */
+  onControlPointDragEnd?(): void
 }
 
 interface ControlPointState {
@@ -129,6 +131,9 @@ export default class ControlPoint extends React.Component<ControlPointProps, Con
               isDragging: false
             })
             this.onDragPositionChanged()
+            if (this.props.onControlPointDragEnd) {
+              this.props.onControlPointDragEnd()
+            }
           }}
         />
         {this.renderVisualRepresentation()}
