@@ -195,6 +195,15 @@ export function houdiniCameraScript(
     'camera.setParms({' + parameters.join(', ') + '})',
     'camera.setWorldTransform(hou.Matrix4((' + matrixRows.join(', ') + ')))'
   )
+  if (camera.windowX != 0 || camera.windowY != 0) {
+    lines.push(
+      '# The principal point is not in the image centre, so the camera has a screen window offset.',
+      '# Stop the viewports from moving the background image by that offset too.',
+      '_ = hou.isUIAvailable() and [viewport.settings().setApplyZoomToBackgroundImage(False) ' +
+        'for pane_tab in hou.ui.paneTabs() if pane_tab.type() == hou.paneTabType.SceneViewer ' +
+        'for viewport in pane_tab.viewports()]'
+    )
+  }
 
   return lines.join('\n') + '\n'
 }
