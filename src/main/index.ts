@@ -16,7 +16,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-import { app, BrowserWindow, ipcMain, dialog, Menu } from 'electron'
+import { app, BrowserWindow, clipboard, ipcMain, dialog, Menu } from 'electron'
 import { OpenProjectMessage, OpenImageMessage, SaveProjectMessage, SaveProjectAsMessage, NewProjectMessage, ExportMessage, ExportType, SetSidePanelVisibilityMessage } from './ipc-messages'
 const path = require('path')
 const url = require('url')
@@ -27,7 +27,8 @@ import { basename, join } from 'path'
 import AppMenuManager from './app-menu-manager'
 import ProjectFile from '../gui/io/project-file'
 import { Palette } from '../gui/style/palette'
-import { openSync, writeSync, closeSync } from 'fs'
+import { openSync, writeSync, closeSync, existsSync, readFileSync, writeFileSync } from 'fs'
+import { houdiniCameraName, houdiniCameraScript, HoudiniExportPayload } from '../gui/io/houdini-export'
 import { CLI } from '../cli/cli'
 
 app.allowRendererProcessReuse = true
@@ -232,6 +233,12 @@ function createWindow() {
           new ExportMessage(ExportType.ProjectImage)
         )
       },
+      onExportHoudiniCamera: () => {
+        window.webContents.send(
+          ExportMessage.type,
+          new ExportMessage(ExportType.HoudiniCamera)
+        )
+      },
       onQuit: () => {
         app.quit()
       },
@@ -395,6 +402,10 @@ function createWindow() {
   })
 
   ipcMain.on(SpecifyExportPathMessage.type, (_: any, message: SpecifyExportPathMessage) => {
+    if (message.exportType == ExportType.HoudiniCamera) {
+      exportHoudiniCamera(window, message.data)
+      return
+    }
     // TODO: DRY
     dialog.showSaveDialog(
       window,
@@ -467,6 +478,80 @@ function createWindow() {
       }
     }
     refreshTitle(window)
+  })
+}
+
+function imageFileExtension(image: Uint8Array): string {
+  const startsWith = (text: string, offset: number = 0) => {
+    return text.split('').every((character, index) => image[offset + index] == character.charCodeAt(0))
+  }
+  if (startsWith('\x89PNG')) {
+    return 'png'
+  } else if (startsWith('GIF8')) {
+    return 'gif'
+  } else if (startsWith('BM')) {
+    return 'bmp'
+  } else if (startsWith('RIFF') && startsWith('WEBP', 8)) {
+    return 'webp'
+  }
+  return 'jpg'
+}
+
+/**
+ * Writes a Python script that creates the solved camera in Houdini, with
+ * the project image next to it, and puts the script on the clipboard.
+ */
+function exportHoudiniCamera(window: BrowserWindow, payload: HoudiniExportPayload) {
+  const projectPath = documentState ? documentState.filePath : null
+  dialog.showSaveDialog(
+    window,
+    {
+      defaultPath: projectPath ? projectPath.replace(/\.fspy$/i, '') + '.py' : 'fspy_camera.py',
+      filters: [{ name: 'Python script', extensions: ['py'] }]
+    }
+  ).then((result) => {
+    if (result.canceled || !result.filePath) {
+      return
+    }
+    const scriptPath = result.filePath.replace(/\.py$/i, '') + '.py'
+
+    let imagePath: string | null = null
+    if (payload.image) {
+      const image = Buffer.from(payload.image)
+      imagePath = scriptPath.replace(/\.py$/, '.' + imageFileExtension(image))
+      // The save dialog only asked about the script, so don't
+      // silently replace some other image with the same name.
+      if (existsSync(imagePath) && !readFileSync(imagePath).equals(image)) {
+        const choice = dialog.showMessageBoxSync(window, {
+          type: 'question',
+          buttons: ['Replace', 'Cancel'],
+          message: basename(imagePath) + ' already exists and is a different image. Replace it?'
+        })
+        if (choice != 0) {
+          return
+        }
+      }
+      writeFileSync(imagePath, image)
+    }
+
+    const script = houdiniCameraScript(
+      payload.camera,
+      houdiniCameraName(basename(scriptPath)),
+      imagePath
+    )
+    writeFileSync(scriptPath, script)
+    clipboard.writeText(script)
+
+    dialog.showMessageBox(window, {
+      type: 'info',
+      message: 'Houdini camera exported',
+      detail: 'The script is also on the clipboard. In Houdini, paste it into ' +
+        'the Python shell or choose File > Run Script and pick ' + basename(scriptPath) + '.'
+    }).catch((_) => {
+      //
+    })
+  }).catch((error) => {
+    dialog.showErrorBox('Failed to export Houdini camera', String(error))
   })
 }
 

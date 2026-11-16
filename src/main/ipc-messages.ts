@@ -66,7 +66,8 @@ export class SetSidePanelVisibilityMessage {
 
 export enum ExportType {
   CameraParametersJSON,
-  ProjectImage
+  ProjectImage,
+  HoudiniCamera
 }
 
 export class ExportMessage {

@@ -34,6 +34,7 @@ import ProjectFile from './io/project-file'
 import { readFileSync } from 'fs'
 import { SpecifyProjectPathMessage, OpenDroppedProjectMessage, SpecifyExportPathMessage } from './ipc-messages'
 import { loadImage } from './io/util'
+import { houdiniCameraData, HoudiniExportPayload } from './io/houdini-export'
 import store from './store/store'
 import SplashScreen from './components/splash-screen'
 import { Dispatch } from 'redux'
@@ -218,6 +219,18 @@ export function mapDispatchToProps(dispatch: Dispatch<AppAction>) {
           break
         case ExportType.ProjectImage:
           dataToExport = storeState.image.data
+          break
+        case ExportType.HoudiniCamera:
+          if (storeState.solverResult.cameraParameters) {
+            const payload: HoudiniExportPayload = {
+              camera: houdiniCameraData(
+                storeState.solverResult.cameraParameters,
+                storeState.calibrationSettingsBase
+              ),
+              image: storeState.image.data
+            }
+            dataToExport = payload
+          }
           break
       }
 

@@ -28,6 +28,7 @@ export interface AppMenuCallbacks {
   onQuit(): void
   onExportJSON(): void
   onExportProjectImage(): void
+  onExportHoudiniCamera(): void
   onEnterFullScreenMode(): void
   onExitFullScreenMode(): void
 }
@@ -121,6 +122,12 @@ export default class AppMenuManager {
             label: 'Project image',
             click: () => {
               this.callbacks.onExportProjectImage()
+            }
+          },
+          {
+            label: 'Houdini camera (Python script)',
+            click: () => {
+              this.callbacks.onExportHoudiniCamera()
             }
           }
         ]
